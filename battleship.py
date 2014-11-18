@@ -48,10 +48,24 @@ SHIPCOLOR = YELLOW
 HIGHLIGHTCOLOR = BLUE
 
 
+class Agent:
+    """
+    Our battleship playing agent
+    """
+    def __init__(self, alpha=1, gamma=1):
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def takeShot(self, width, height):
+        xpos = random.randint(0, width-1)
+        ypos = random.randint(0, height-1)
+
+        return (xpos, ypos)
+
 def main():
     global DISPLAYSURF, FPSCLOCK, BASICFONT, HELP_SURF, HELP_RECT, NEW_SURF, \
            NEW_RECT, SHOTS_SURF, SHOTS_RECT, BIGFONT, COUNTER_SURF, \
-           COUNTER_RECT, HBUTTON_SURF, EXPLOSION_IMAGES
+           COUNTER_RECT,EXPLOSION_IMAGES
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
@@ -59,9 +73,6 @@ def main():
     BIGFONT = pygame.font.Font('freesansbold.ttf', 50)
     
     # create buttons
-    HELP_SURF = BASICFONT.render("HELP", True, WHITE)
-    HELP_RECT = HELP_SURF.get_rect()
-    HELP_RECT.topleft = (WINDOWWIDTH - 180, WINDOWHEIGHT - 350)
     NEW_SURF = BASICFONT.render("NEW GAME", True, WHITE)
     NEW_RECT = NEW_SURF.get_rect()
     NEW_RECT.topleft = (WINDOWWIDTH - 200, WINDOWHEIGHT - 200)
@@ -73,7 +84,7 @@ def main():
     
     # Explosion graphics
     EXPLOSION_IMAGES = [
-        pygame.image.load("img/blowup1.png"), pygame.image.load("img/blowup2.png"),
+        pygame.image.load("img/blowup1.png"),pygame.image.load("img/blowup2.png"),
         pygame.image.load("img/blowup3.png"),pygame.image.load("img/blowup4.png"),
         pygame.image.load("img/blowup5.png"),pygame.image.load("img/blowup6.png")]
     
@@ -85,11 +96,11 @@ def main():
         
         
 def run_game():
+    agent = Agent()
     revealed_tiles = generate_default_tiles(False)
     # main board object, 
     main_board = generate_default_tiles(None)
-    ship_objs = ['battleship','cruiser1','cruiser2','destroyer1','destroyer2',
-                 'destroyer3','submarine1','submarine2','submarine3','submarine4']
+    ship_objs = ['carrier','battleship','destroyer','submarine','ptcruiser']
     main_board = add_ships_to_board(main_board, ship_objs)
     mousex, mousey = 0, 0
     counter = [] # counter to track number of shots fired
@@ -103,30 +114,27 @@ def run_game():
         
         # draw the buttons
         DISPLAYSURF.fill(BGCOLOR)
-        DISPLAYSURF.blit(HELP_SURF, HELP_RECT)
         DISPLAYSURF.blit(NEW_SURF, NEW_RECT)
         DISPLAYSURF.blit(SHOTS_SURF, SHOTS_RECT)
         DISPLAYSURF.blit(COUNTER_SURF, COUNTER_RECT)
         
         draw_board(main_board, revealed_tiles)
         draw_markers(xmarkers, ymarkers)
-        mouse_clicked = False     
+        mouse_clicked = True #False     
 
         check_for_quit()
-        for event in pygame.event.get():
-            if event.type == MOUSEBUTTONUP:
-                if HELP_RECT.collidepoint(event.pos):
-                    DISPLAYSURF.fill(BGCOLOR)
-                    show_help_screen()
-                elif NEW_RECT.collidepoint(event.pos):
-                    main()
-                else:
-                    mousex, mousey = event.pos
-                    mouse_clicked = True
-            elif event.type == MOUSEMOTION:
-                mousex, mousey = event.pos
+#        for event in pygame.event.get():
+#            if event.type == MOUSEBUTTONUP:
+#                if NEW_RECT.collidepoint(event.pos):
+#                    main()
+#                else:
+#                    mousex, mousey = event.pos
+#                    mouse_clicked = True
+#            elif event.type == MOUSEMOTION:
+#                mousex, mousey = event.pos
                     
-        tilex, tiley = get_tile_at_pixel(mousex, mousey)
+#        tilex, tiley = get_tile_at_pixel(mousex, mousey)
+        tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
         if tilex != None and tiley != None:
             if not revealed_tiles[tilex][tiley]:
                 draw_highlight_tile(tilex, tiley)
@@ -302,14 +310,16 @@ def add_ships_to_board(board, ships):
             xStartpos = random.randint(0, 9)
             yStartpos = random.randint(0, 9)
             isHorizontal = random.randint(0, 1)
+            if 'carrier' in ship:
+                ship_length = 5
             if 'battleship' in ship:
                 ship_length = 4
-            elif 'cruiser' in ship:
+            elif 'destroyer' in ship:
                 ship_length = 3
-            elif 'destroyer'in ship:
+            elif 'submarine'in ship:
+                ship_length = 3
+            elif 'ptcruiser' in ship:
                 ship_length = 2
-            elif 'submarine' in ship:
-                ship_length = 1
 
             valid_ship_position, ship_coords = make_ship_position(new_board,
                 xStartpos, yStartpos, isHorizontal, ship_length, ship)
@@ -393,39 +403,6 @@ def draw_highlight_tile(tilex, tiley):
                     (left, top, TILESIZE, TILESIZE), 4)
 
 
-def show_help_screen():
-    # display the help screen until a button is pressed
-    line1_surf, line1_rect = make_text_objs('Press a key to return to the game', 
-                                            BASICFONT, TEXTCOLOR)
-    line1_rect.topleft = (TEXT_LEFT_POSN, TEXT_HEIGHT)
-    DISPLAYSURF.blit(line1_surf, line1_rect)
-    
-    line2_surf, line2_rect = make_text_objs(
-        'This is a battleship puzzle game. Your objective is ' \
-        'to sink all the ships in as few', BASICFONT, TEXTCOLOR)
-    line2_rect.topleft = (TEXT_LEFT_POSN, TEXT_HEIGHT * 3)
-    DISPLAYSURF.blit(line2_surf, line2_rect)
-
-    line3_surf, line3_rect = make_text_objs('shots as possible. The markers on'\
-        ' the edges of the game board tell you how', BASICFONT, TEXTCOLOR)
-    line3_rect.topleft = (TEXT_LEFT_POSN, TEXT_HEIGHT * 4)
-    DISPLAYSURF.blit(line3_surf, line3_rect)
-
-    line4_surf, line4_rect = make_text_objs('many ship pieces are in each'\
-        ' column and row. To reset your game click on', BASICFONT, TEXTCOLOR)
-    line4_rect.topleft = (TEXT_LEFT_POSN, TEXT_HEIGHT * 5)
-    DISPLAYSURF.blit(line4_surf, line4_rect)
-
-    line5_surf, line5_rect = make_text_objs('the "New Game" button.',
-        BASICFONT, TEXTCOLOR)
-    line5_rect.topleft = (TEXT_LEFT_POSN, TEXT_HEIGHT * 6)
-    DISPLAYSURF.blit(line5_surf, line5_rect)
-    
-    while check_for_keypress() == None:
-        pygame.display.update()
-        FPSCLOCK.tick()
-
-        
 def check_for_keypress():
     # pulling out all KEYDOWN and KEYUP events from queue and returning any 
     # KEYUP else return None
