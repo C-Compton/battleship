@@ -52,15 +52,43 @@ class Agent:
     """
     Our battleship playing agent
     """
-    def __init__(self, alpha=1, gamma=1):
+    def __init__(self, game_board, revealed_tiles, alpha=1, gamma=1, epsilon=0):
         self.alpha = alpha
         self.gamma = gamma
+        self.epsilon = epsilon
+
+        # Keep a copy of the game board state, the revealed tiles
+        # and the current shot in order to perform the various
+        # learning calculations
+        self.board = game_board
+        self.revealed = revealed_tiles
+        self.currentShot = None
 
     def takeShot(self, width, height):
+        """
+        Take a shot on the board. Currently performs random shots
+        :param width:  width of board
+        :param height: height of board
+        :return: tuple of x and y board position to fire upon
+        """
+        # FIXME: Update this method to perform shots based on AI algorithms
         xpos = random.randint(0, width-1)
         ypos = random.randint(0, height-1)
-
+        self.currentShot = (xpos, ypos)
         return (xpos, ypos)
+
+    def update(self, game_board, revealed_tiles, hitScored):
+        """
+        Update the agent's game state
+        :param game_board:     Current game board
+        :param revealed_tiles: Current set of revealed tiles
+        :param hitScored:      Boolean, whether last shot was hit or miss
+        :return:
+        """
+        self.board = game_board
+        self.revealed = revealed_tiles
+
+        # if hitScored, update Q values for agent's copy of the game board
 
 def main():
     global DISPLAYSURF, FPSCLOCK, BASICFONT, HELP_SURF, HELP_RECT, NEW_SURF, \
@@ -96,8 +124,7 @@ def main():
         
         
 def run_game():
-    agent = Agent()
-    revealed_tiles = generate_default_tiles(False)
+    revealed_tiles = generate_default_tiles(False) # Part of board initialize
     # main board object, 
     main_board = generate_default_tiles(None)
     ship_objs = ['carrier','battleship','destroyer','submarine','ptcruiser']
@@ -105,6 +132,9 @@ def run_game():
     mousex, mousey = 0, 0
     counter = [] # counter to track number of shots fired
     xmarkers, ymarkers = set_markers(main_board)
+
+    agent = Agent(main_board, revealed_tiles)
+
         
     while True:
         # counter display (it needs to be here in order to refresh it)
@@ -120,7 +150,8 @@ def run_game():
         
         draw_board(main_board, revealed_tiles)
         draw_markers(xmarkers, ymarkers)
-        mouse_clicked = True #False     
+        mouse_clicked = True #False
+        hitScored = False
 
         check_for_quit()
 #        for event in pygame.event.get():
@@ -144,10 +175,13 @@ def run_game():
                 if check_revealed_tile(main_board, [(tilex, tiley)]):
                     left, top = left_top_coords_tile(tilex, tiley)
                     blowup_animation((left, top))
+                    hitScored = True
                     if check_for_win(main_board, revealed_tiles):
                         counter.append((tilex, tiley))
                         return len(counter)
                 counter.append((tilex, tiley))
+
+        agent.update(main_board, revealed_tiles, hitScored)
                 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
