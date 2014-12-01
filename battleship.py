@@ -9,6 +9,7 @@ http://inventwithpython.com/pygame/chapters/
 # Importing pygame modules
 import random, sys, pygame
 from pygame.locals import *
+import util
 
 # Set variables, like screen width and height 
 # globals
@@ -53,10 +54,10 @@ class Agent:
     Our battleship playing agent
     """
     def __init__(self, game_board, revealed_tiles, alpha=1, gamma=1, epsilon=0):
-        self.alpha = alpha
-        self.gamma = gamma
-        self.epsilon = epsilon
-
+        self.alpha = float(alpha)
+        self.gamma = float(gamma)
+        self.epsilon = float(epsilon)
+        self.qValues = util.Counter()
         # Keep a copy of the game board state, the revealed tiles
         # and the current shot in order to perform the various
         # learning calculations
@@ -76,7 +77,11 @@ class Agent:
         ypos = random.randint(0, height-1)
         self.currentShot = (xpos, ypos)
         return (xpos, ypos)
-
+    
+    def manhattanDistance( xy1, xy2 ):
+        "Returns the Manhattan distance between points xy1 and xy2"
+        return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
+            
     def update(self, game_board, revealed_tiles, hitScored):
         """
         Update the agent's game state
@@ -89,6 +94,91 @@ class Agent:
         self.revealed = revealed_tiles
 
         # if hitScored, update Q values for agent's copy of the game board
+    def getQValue(self, action):
+        """
+          Returns Q(state,action)
+          Should return 0.0 if we have never seen a state
+          or the Q node value otherwise
+        """
+       
+        return self.qValues[(position, distance)]
+        util.raiseNotDefined()
+
+
+    def computeValueFromQValues(self, position):
+        """
+          Returns max_action Q(state,action)
+          where the max is over legal actions.  Note that if
+          there are no legal actions, which is the case at the
+          terminal state, you should return a value of 0.0.
+        """
+        legalPositions = self.getLegalPosition(postion)
+        if legalPositions:
+            return max(self.getQValue(state, action) for action in legalActions)
+        return 0.0
+
+        util.raiseNotDefined()
+
+    def computeActionFromQValues(self, position):
+        """
+          Compute the best action to take in a state.  Note that if there
+          are no legal actions, which is the case at the terminal state,
+          you should return None.
+        """
+      
+        legalPositions = self.getLegalPosition(postion)
+        if legalActions:
+            tempValues = util.Counter()
+            for action in legalActions:
+                tempValues[action] = self.getQValue(state, action)
+            return tempValues.argMax()
+        return None
+        util.raiseNotDefined()
+
+    def getAction(self, position):
+        """
+          Compute the action to take in the current state.  With
+          probability self.epsilon, we should take a random action and
+          take the best policy action otherwise.  Note that if there are
+          no legal actions, which is the case at the terminal state, you
+          should choose None as the action.
+
+          HINT: You might want to use util.flipCoin(prob)
+          HINT: To pick randomly from a list, use random.choice(list)
+        """
+        # Pick Action
+        legalPositions = self.getLegalPosition(postion)
+        action = None
+        if legalActions:
+            if util.flipCoin(self.epsilon):
+                action = takeshot(BOARDWIDTH, BOARDHEIGHT)
+            else:
+                action = self.getPolicy(position)
+        return action
+        
+
+    def update(self, state, action, nextState, reward):
+        """
+          The parent class calls this to observe a
+          state = action => nextState and reward transition.
+          You should do your Q-Value update here
+
+          NOTE: You should never call this function,
+          it will be called on your behalf
+        """
+        legalPositions = self.getLegalPosition(postion)
+        sample = reward
+        if legalActions:
+            sample = reward + self.discount * max(self.getQValue(nextState, action) for action in legalActions)
+        self.qValues[(state, action)] = (1-self.alpha) * self.getQValue(state, action) + self.alpha * sample 
+#        util.raiseNotDefined()
+
+    def getPolicy(self, state):
+        return self.computeActionFromQValues(state)
+
+    def getValue(self, state):
+        return self.computeValueFromQValues(state)
+
 
 def main():
     global DISPLAYSURF, FPSCLOCK, BASICFONT, HELP_SURF, HELP_RECT, NEW_SURF, \
