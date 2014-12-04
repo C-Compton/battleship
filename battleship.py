@@ -82,7 +82,7 @@ class Agent:
         "Returns the Manhattan distance between points xy1 and xy2"
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
             
-    def update(self, game_board, revealed_tiles, hitScored):
+    def hunt_update(self, game_board, revealed_tiles, hitScored):
         """
         Update the agent's game state
         :param game_board:     Current game board
@@ -104,9 +104,11 @@ class Agent:
         """
         stackofshots = [(0,0)]
         stackofshots.pop()
-        hitScored =False
+        hitScored = False
+        counter  = 0
         while check_for_win(self.board, self.revealed) != 1:
             tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
+            counter = counter+1 
             if tilex != None and tiley != None:
                 if not self.revealed[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
@@ -149,7 +151,8 @@ class Agent:
                             
                             
                             
-        self.update(self.board, self.revealed, hitScored)
+        self.hunt_update(self.board, self.revealed, hitScored)
+        show_gameover_screen(counter)
     def getQValue(self, action):
         """
           Returns Q(state,action)
