@@ -94,7 +94,64 @@ class Agent:
         self.board = game_board
         self.revealed = revealed_tiles
 
-        # if hitScored, update Q values for agent's copy of the game board
+
+    def hunt_target(self):
+        """ 
+        Algorithm based on the hunt/target algorithm from http://www.datagenetics.com/blog/december32011/
+        fires random shots until it hits a boat and then pushes spots around hit square onto stack.
+        takes shots that are on the stack. If it hits more boat spots it pushes more to stack.
+        Takes shots til stack is empty then returns to random firing.
+        
+        """
+        stackofshots = [(0,0)]
+        stackofshots.pop()
+        hitScored =False
+        while check_for_win(self.board, self.revealed) != 1:
+            tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
+            if tilex != None and tiley != None:
+                if not self.revealed[tilex][tiley]:
+                    draw_highlight_tile(tilex, tiley)
+                if not self.revealed[tilex][tiley]:
+                    reveal_tile_animation(self.board, [(tilex, tiley)])
+                    self.revealed[tilex][tiley] = True
+                    if check_revealed_tile(self.board, [(tilex, tiley)]):
+                        left, top = left_top_coords_tile(tilex, tiley)
+                        blowup_animation((left, top))
+                        hitScored = True
+                        if tilex+1 < 10 and not self.revealed[tilex+1][tiley] :
+                            stackofshots.append((tilex+1, tiley))
+                        if tiley+1 < 10 and not self.revealed[tilex][tiley+1]:
+                            stackofshots.append((tilex, tiley+1))    
+                        if tilex-1 >= 0 and not self.revealed[tilex-1][tiley]:
+                            stackofshots.append((tilex-1, tiley))
+                        if tiley-1 >= 0 and not self.revealed[tilex][tiley-1]:
+                            stackofshots.append((tilex, tiley-1))
+                        while stackofshots :
+                            x, y = stackofshots.pop()
+                             
+                            if x != None and y != None:
+                                if not self.revealed[x][y]:
+                                    draw_highlight_tile(x, y)
+                                if not self.revealed[x][y]:
+                                    reveal_tile_animation(self.board, [(x, y)])
+                                    self.revealed[x][y] = True
+                                    if check_revealed_tile(self.board, [(x, y)]):
+                                        left, top = left_top_coords_tile(x, y)
+                                        blowup_animation((left, top))
+                                        hitScored = True
+                                        if x+1 < 10 and not self.revealed[x+1][y]:
+                                            stackofshots.append((x+1, y))
+                                        if y+1 < 10 and not self.revealed[x][y+1]:
+                                            stackofshots.append((x, y+1))    
+                                        if x-1 >= 0 and not self.revealed[x-1][y]:
+                                            stackofshots.append((x-1, y))
+                                        if y-1 >= 0 and not self.revealed[x][y-1]:
+                                            stackofshots.append((x, y-1))
+                            
+                            
+                            
+        self.update(self.board, self.revealed, hitScored)
+    # if hitScored, update Q values for agent's copy of the game board
     def getQValue(self, position):
         """
           Returns Q(state,action)
@@ -263,21 +320,25 @@ def run_game():
 #                mousex, mousey = event.pos
                     
 #        tilex, tiley = get_tile_at_pixel(mousex, mousey)
-        tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
-        if tilex != None and tiley != None:
-            if not revealed_tiles[tilex][tiley]:
-                draw_highlight_tile(tilex, tiley)
-            if not revealed_tiles[tilex][tiley] and mouse_clicked:
-                reveal_tile_animation(main_board, [(tilex, tiley)])
-                revealed_tiles[tilex][tiley] = True
-                if check_revealed_tile(main_board, [(tilex, tiley)]):
-                    left, top = left_top_coords_tile(tilex, tiley)
-                    blowup_animation((left, top))
-                    hitScored = True
-                    if check_for_win(main_board, revealed_tiles):
-                        counter.append((tilex, tiley))
-                        return len(counter)
-                counter.append((tilex, tiley))
+        hunt = 1 #trigger for hunt/target algorithm
+        if hunt == 1 :
+            agent.hunt_target()
+        else :
+            tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
+            if tilex != None and tiley != None:
+                if not revealed_tiles[tilex][tiley]:
+                    draw_highlight_tile(tilex, tiley)
+                if not revealed_tiles[tilex][tiley] and mouse_clicked:
+                    reveal_tile_animation(main_board, [(tilex, tiley)])
+                    revealed_tiles[tilex][tiley] = True
+                    if check_revealed_tile(main_board, [(tilex, tiley)]):
+                        left, top = left_top_coords_tile(tilex, tiley)
+                        blowup_animation((left, top))
+                        hitScored = True
+                        if check_for_win(main_board, revealed_tiles):
+                            counter.append((tilex, tiley))
+                            return len(counter)
+                    counter.append((tilex, tiley))
 
         agent.update(main_board, revealed_tiles, hitScored)
                 
