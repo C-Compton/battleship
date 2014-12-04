@@ -57,7 +57,8 @@ class Agent:
         self.alpha = float(alpha)
         self.gamma = float(gamma)
         self.epsilon = float(epsilon)
-        self.qValues = util.Counter()
+        self.qValuesOfhit = util.Counter()
+        self.qValuesOfmiss = util.Counter()
         # Keep a copy of the game board state, the revealed tiles
         # and the current shot in order to perform the various
         # learning calculations
@@ -93,7 +94,7 @@ class Agent:
         self.board = game_board
         self.revealed = revealed_tiles
 
-        # if hitScored, update Q values for agent's copy of the game board
+
     def hunt_target(self):
         """ 
         Algorithm based on the hunt/target algorithm from http://www.datagenetics.com/blog/december32011/
@@ -153,15 +154,21 @@ class Agent:
                             
         self.hunt_update(self.board, self.revealed, hitScored)
         show_gameover_screen(counter)
-    def getQValue(self, action):
+        
+    # if hitScored, update Q values for agent's copy of the game board
+    def getQValue(self, position):
         """
           Returns Q(state,action)
           Should return 0.0 if we have never seen a state
           or the Q node value otherwise
         """
-       
-        return self.qValues[(position, distance)]
-        util.raiseNotDefined()
+        """
+         if hit then return self.qValuesOfhit
+         or return self.qValuesOfMiss
+        """
+        return self.qValuesOfhit[(position, distance)]
+#        or return self.qValuesOfmiss[(position, distance)]
+#        util.raiseNotDefined()
 
 
     def computeValueFromQValues(self, position):
@@ -189,7 +196,7 @@ class Agent:
         if legalActions:
             tempValues = util.Counter()
             for action in legalActions:
-                tempValues[action] = self.getQValue(state, action)
+                tempValues[action] = self.getQValue(state, position)
             return tempValues.argMax()
         return None
         util.raiseNotDefined()
@@ -216,7 +223,7 @@ class Agent:
         return action
         
 
-    def update(self, state, action, nextState, reward):
+    def update_qvalue(self, state, action, nextState, reward):
         """
           The parent class calls this to observe a
           state = action => nextState and reward transition.
@@ -227,16 +234,19 @@ class Agent:
         """
         legalPositions = self.getLegalPosition(postion)
         sample = reward
-        if legalActions:
-            sample = reward + self.discount * max(self.getQValue(nextState, action) for action in legalActions)
-        self.qValues[(state, action)] = (1-self.alpha) * self.getQValue(state, action) + self.alpha * sample 
+        if legalPositions:
+            sample = reward + self.discount * max(self.getQValue(nextState, action) for position in legalPositions)
+        self.qValuesOfhit[(state, action)] = (1-self.alpha) * self.getQValue(state, action) + self.alpha * sample
+#        after we deciede  how to discriminate the hit and miss
+#        there will be a if/else segment of update one of two set of q-values
+#        self.qValuesOfmiss[(state, action)]
 #        util.raiseNotDefined()
 
     def getPolicy(self, state):
-        return self.computeActionFromQValues(state)
+        return self.computeActionFromQValues(position)
 
     def getValue(self, state):
-        return self.computeValueFromQValues(state)
+        return self.computeValueFromQValues(position)
 
 
 def main():
