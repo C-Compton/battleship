@@ -324,7 +324,7 @@ def run_game():
 #                mousex, mousey = event.pos
                     
 #        tilex, tiley = get_tile_at_pixel(mousex, mousey)
-        hunt = 1 #trigger for hunt/target algorithm
+        hunt = 0 #trigger for hunt/target algorithm
         if hunt == 1 :
             agent.hunt_target()
         else :
@@ -344,7 +344,7 @@ def run_game():
                             return len(counter)
                     counter.append((tilex, tiley))
 
-        agent.update(main_board, revealed_tiles, hitScored)
+        agent.hunt_update(main_board, revealed_tiles, hitScored)
                 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
