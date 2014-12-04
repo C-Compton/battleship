@@ -78,7 +78,22 @@ class Agent:
         ypos = random.randint(0, height-1)
         self.currentShot = (xpos, ypos)
         return (xpos, ypos)
-    
+
+    def takeShotWithParity(self, width, height):
+        """
+        Take a shot on the board. Currently performs random shots
+        :param width:  width of board
+        :param height: height of board
+        :return: tuple of x and y board position to fire upon
+        """
+        # FIXME: Update this method to perform shots based on AI algorithms
+        while True:
+            xpos = random.randint(0, width-1)
+            ypos = random.randint(0, height-1)
+            if xpos%2 != ypos%2:
+                self.currentShot = (xpos, ypos)
+                return (xpos, ypos)
+ 
     def manhattanDistance( xy1, xy2 ):
         "Returns the Manhattan distance between points xy1 and xy2"
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
@@ -109,12 +124,13 @@ class Agent:
         counter  = 0
 
         while check_for_win(self.board, self.revealed) != 1:
-            tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
-            counter = counter+1
+            check_for_quit()
+            tilex, tiley = self.takeShotWithParity(BOARDWIDTH, BOARDHEIGHT)
             
             if tilex != None and tiley != None:
                 if not self.revealed[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
+                    counter = counter + 1
                 if not self.revealed[tilex][tiley]:
                     reveal_tile_animation(self.board, [(tilex, tiley)])
                     self.revealed[tilex][tiley] = True
@@ -136,6 +152,7 @@ class Agent:
                             if x != None and y != None:
                                 if not self.revealed[x][y]:
                                     draw_highlight_tile(x, y)
+                                    counter = counter + 1
                                 if not self.revealed[x][y]:
                                     reveal_tile_animation(self.board, [(x, y)])
                                     self.revealed[x][y] = True
@@ -156,6 +173,8 @@ class Agent:
                             
         self.hunt_update(self.board, self.revealed, hitScored)
         show_gameover_screen(counter)
+        while True:
+            check_for_quit()
         
     # if hitScored, update Q values for agent's copy of the game board
     def getQValue(self, position):
