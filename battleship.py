@@ -7,7 +7,7 @@ http://inventwithpython.com/pygame/chapters/
 """
 
 # Importing pygame modules
-import random, sys, pygame
+import random, sys, pygame, argparse
 from pygame.locals import *
 import util
 
@@ -67,18 +67,35 @@ class Agent:
         self.revealed = revealed_tiles
         self.currentShot = None
 
-    def takeShot(self, width, height):
+    def takeAllaviablegrid(self):
+        grid_avilable=[]
+        for x in range(BOARDWIDTH) :
+            for y in range(BOARDHEIGHT):
+                if self.tiles_left[x][y]==1:
+                    grid_avilable.append((x,y))
+#        print"aaaaaa",grid_avilable
+        return grid_avilable
+
+    def takeRandShot(self, width, height):
         """
         Take a shot on the board. Currently performs random shots
         :param width:  width of board
         :param height: height of board
         :return: tuple of x and y board position to fire upon
         """
+        xpos = random.randint(0, width - 1)
+        ypos = random.randint(0, height - 1)
+        self.currentShot = (xpos, ypos)
+        return (xpos, ypos)
+
+    def takeShot(self, width, height):
+        
         # FIXME: Update this method to perform shots based on AI algorithms
         xpos = random.randint(0, width-1)
         ypos = random.randint(0, height-1)
         self.currentShot = (xpos, ypos)
-        self.tiles_left.remove((xpos, ypos))
+        # print 'the travel list is', self.tiles_left
+        self.tiles_left[xpos][ypos] = 0
         return (xpos, ypos)
     
     def takeShotWithParity(self, width, height):
@@ -95,6 +112,7 @@ class Agent:
             if xpos%2 != ypos%2:
                 self.currentShot = (xpos, ypos)
                 return (xpos, ypos)
+
     def manhattanDistance( xy1, xy2 ):
         "Returns the Manhattan distance between points xy1 and xy2"
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
@@ -285,6 +303,11 @@ class Agent:
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-H", "--hunter", action="store_true", help="User the hunter algorithm (non-AI)")
+    parser.add_argument("-a", "--ai", action="store_true", help="Use the AI algorithm")
+    args = parser.parse_args()
+
     global DISPLAYSURF, FPSCLOCK, BASICFONT, HELP_SURF, HELP_RECT, NEW_SURF, \
            NEW_RECT, SHOTS_SURF, SHOTS_RECT, BIGFONT, COUNTER_SURF, \
            COUNTER_RECT,EXPLOSION_IMAGES
@@ -313,11 +336,11 @@ def main():
     pygame.display.set_caption('Battleship')
 
     while True:
-        shots_taken = run_game()
+        shots_taken = run_game(args)
         show_gameover_screen(shots_taken)
         
         
-def run_game():
+def run_game(args):
     revealed_tiles = generate_default_tiles(False) # Part of board initialize
     # main board object, 
     main_board = generate_default_tiles(None)
@@ -359,10 +382,11 @@ def run_game():
 #                mousex, mousey = event.pos
                     
 #        tilex, tiley = get_tile_at_pixel(mousex, mousey)
-        hunt = 1 #trigger for hunt/target algorithm
-        if hunt == 1 :
+#        hunt = 1 #trigger for hunt/target algorithm
+        if args.hunter :
             agent.hunt_target()
-        else :
+            agent.hunt_update(main_board, revealed_tiles, hitScored)
+        elif args.ai :
             tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
             if tilex != None and tiley != None:
                 if not revealed_tiles[tilex][tiley]:
@@ -378,8 +402,27 @@ def run_game():
                             counter.append((tilex, tiley))
                             return len(counter)
                     counter.append((tilex, tiley))
+            # Jianing, this is your update function, what needs to be passed in?
+            agent.update()
+        else :
+            tilex, tiley = agent.takeRandShot(BOARDWIDTH, BOARDHEIGHT)
+            if tilex != None and tiley != None:
+                if not revealed_tiles[tilex][tiley]:
+                    draw_highlight_tile(tilex, tiley)
+                if not revealed_tiles[tilex][tiley] and mouse_clicked:
+                    reveal_tile_animation(main_board, [(tilex, tiley)])
+                    revealed_tiles[tilex][tiley] = True
+                    if check_revealed_tile(main_board, [(tilex, tiley)]):
+                        left, top = left_top_coords_tile(tilex, tiley)
+                        blowup_animation((left, top))
+                        hitScored = True
+                        if check_for_win(main_board, revealed_tiles):
+                            counter.append((tilex, tiley))
+                            return len(counter)
+                    counter.append((tilex, tiley))
+            agent.hunt_update(main_board, revealed_tiles, hitScored)
 
-        agent.hunt_update(main_board, revealed_tiles, hitScored)
+
                 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
