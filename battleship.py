@@ -58,7 +58,8 @@ class Agent:
         self.gamma = float(gamma)
         self.epsilon = float(epsilon)
         self.qValuesOfhit = util.Counter()
-        self.qValuesOfmiss = util.Counter()
+        self.qValuesOfMiss = util.Counter()
+        self.tiles_left=self.game_board
         # Keep a copy of the game board state, the revealed tiles
         # and the current shot in order to perform the various
         # learning calculations
@@ -77,28 +78,14 @@ class Agent:
         xpos = random.randint(0, width-1)
         ypos = random.randint(0, height-1)
         self.currentShot = (xpos, ypos)
+        self.tiles_left.remove((xpos, ypos))
         return (xpos, ypos)
-
-    def takeShotWithParity(self, width, height):
-        """
-        Take a shot on the board. Currently performs random shots
-        :param width:  width of board
-        :param height: height of board
-        :return: tuple of x and y board position to fire upon
-        """
-        # FIXME: Update this method to perform shots based on AI algorithms
-        while True:
-            xpos = random.randint(0, width-1)
-            ypos = random.randint(0, height-1)
-            if xpos%2 != ypos%2:
-                self.currentShot = (xpos, ypos)
-                return (xpos, ypos)
- 
+    
     def manhattanDistance( xy1, xy2 ):
         "Returns the Manhattan distance between points xy1 and xy2"
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
             
-    def hunt_update(self, game_board, revealed_tiles, hitScored):
+    def update(self, game_board, revealed_tiles, hitScored):
         """
         Update the agent's game state
         :param game_board:     Current game board
@@ -120,17 +107,12 @@ class Agent:
         """
         stackofshots = [(0,0)]
         stackofshots.pop()
-        hitScored = False
-        counter  = 0
-
+        hitScored =False
         while check_for_win(self.board, self.revealed) != 1:
-            check_for_quit()
-            tilex, tiley = self.takeShotWithParity(BOARDWIDTH, BOARDHEIGHT)
-            
+            tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
             if tilex != None and tiley != None:
                 if not self.revealed[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
-                    counter = counter + 1
                 if not self.revealed[tilex][tiley]:
                     reveal_tile_animation(self.board, [(tilex, tiley)])
                     self.revealed[tilex][tiley] = True
@@ -152,7 +134,6 @@ class Agent:
                             if x != None and y != None:
                                 if not self.revealed[x][y]:
                                     draw_highlight_tile(x, y)
-                                    counter = counter + 1
                                 if not self.revealed[x][y]:
                                     reveal_tile_animation(self.board, [(x, y)])
                                     self.revealed[x][y] = True
@@ -171,13 +152,14 @@ class Agent:
                             
                             
                             
-        self.hunt_update(self.board, self.revealed, hitScored)
-        show_gameover_screen(counter)
-        while True:
-            check_for_quit()
-        
+        self.update(self.board, self.revealed, hitScored)
     # if hitScored, update Q values for agent's copy of the game board
-    def getQValue(self, position):
+    def check_revealed_tile(board, tile):
+        # returns True if ship piece at tile location
+        return board[tile[0][0]][tile[0][1]] != None
+    
+    def getQValue(self, position,hit):
+    
         """
           Returns Q(state,action)
           Should return 0.0 if we have never seen a state
@@ -187,8 +169,9 @@ class Agent:
          if hit then return self.qValuesOfhit
          or return self.qValuesOfMiss
         """
-        return self.qValuesOfhit[(position, distance)]
-#        or return self.qValuesOfmiss[(position, distance)]
+        if hit==True:
+            return self.qValuesOfhit[position]
+        else return self.qValuesOfMiss[position]
 #        util.raiseNotDefined()
 
 
@@ -199,10 +182,12 @@ class Agent:
           there are no legal actions, which is the case at the
           terminal state, you should return a value of 0.0.
         """
-        legalPositions = self.getLegalPosition(postion)
+
+        legalPositions = self.tiles_left
         if legalPositions:
-            return max(self.getQValue(state, action) for action in legalActions)
-        return 0.0
+            if check_revealed_tile(board, position):
+                return max(self.getQValue(lposition,check_revealed_tile(board, position)) for lpositions in legalPositions)
+#        return 0.0
 
         util.raiseNotDefined()
 
@@ -213,11 +198,11 @@ class Agent:
           you should return None.
         """
       
-        legalPositions = self.getLegalPosition(postion)
-        if legalActions:
+        legalPositions = self.tiles_left
+        if legalPositions:
             tempValues = util.Counter()
-            for action in legalActions:
-                tempValues[action] = self.getQValue(state, position)
+            for lpostion in legalPositions:
+                tempValues[lposition] = self.getQValue(lposition,check_revealed_tile(position) )
             return tempValues.argMax()
         return None
         util.raiseNotDefined()
@@ -234,17 +219,19 @@ class Agent:
           HINT: To pick randomly from a list, use random.choice(list)
         """
         # Pick Action
-        legalPositions = self.getLegalPosition(postion)
-        action = None
+        legalPositions = self.tiles_left
+        target =()
         if legalActions:
             if util.flipCoin(self.epsilon):
-                action = takeshot(BOARDWIDTH, BOARDHEIGHT)
+                xpos = random.randint(0, width-1)
+                ypos = random.randint(0, height-1)
+                target = (xpos,ypos)
             else:
-                action = self.getPolicy(position)
-        return action
+                target = self.getPolicy(position)
+        return target
         
 
-    def update_qvalue(self, state, action, nextState, reward):
+    def update_qvalue(self, postion,reward):
         """
           The parent class calls this to observe a
           state = action => nextState and reward transition.
@@ -253,21 +240,23 @@ class Agent:
           NOTE: You should never call this function,
           it will be called on your behalf
         """
-        legalPositions = self.getLegalPosition(postion)
+        legalPositions = self.tiles_left
         sample = reward
         if legalPositions:
-            sample = reward + self.discount * max(self.getQValue(nextState, action) for position in legalPositions)
-        self.qValuesOfhit[(state, action)] = (1-self.alpha) * self.getQValue(state, action) + self.alpha * sample
+            sample = reward + self.discount * max(self.getQValue(lposition,check_revealed_tile(board, position)) for lposition in legalPositions)
+        if check_revealed_tile(board, position):
+            self.qValuesOfhit[position] = (1-self.alpha) * self.getQValue(position,check_revealed_tile(board, position) ) + self.alpha * sample
+        else:
+            self.qValuesOfMiss[position] = (1-self.alpha) * self.getQValue(position, check_revealed_tile(board, position)) + self.alpha * sample
 #        after we deciede  how to discriminate the hit and miss
 #        there will be a if/else segment of update one of two set of q-values
 #        self.qValuesOfmiss[(state, action)]
 #        util.raiseNotDefined()
 
-    def getPolicy(self, state):
+    def getPolicy(self, position):
         return self.computeActionFromQValues(position)
 
-    def getValue(self, state):
-        return self.computeValueFromQValues(position)
+  
 
 
 def main():
@@ -365,7 +354,7 @@ def run_game():
                             return len(counter)
                     counter.append((tilex, tiley))
 
-        agent.hunt_update(main_board, revealed_tiles, hitScored)
+        agent.update(main_board, revealed_tiles, hitScored)
                 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
