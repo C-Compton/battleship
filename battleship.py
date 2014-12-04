@@ -303,14 +303,20 @@ class Agent:
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-H", "--hunter", action="store_true", help="User the hunter algorithm (non-AI)")
-    parser.add_argument("-a", "--ai", action="store_true", help="Use the AI algorithm")
-    args = parser.parse_args()
 
     global DISPLAYSURF, FPSCLOCK, BASICFONT, HELP_SURF, HELP_RECT, NEW_SURF, \
            NEW_RECT, SHOTS_SURF, SHOTS_RECT, BIGFONT, COUNTER_SURF, \
-           COUNTER_RECT,EXPLOSION_IMAGES
+           COUNTER_RECT,EXPLOSION_IMAGES, args
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-H", "--hunter", action="store_true", 
+                        help="User the hunter algorithm (non-AI)")
+    parser.add_argument("-a", "--ai", action="store_true", 
+                        help="Use the AI algorithm")
+    parser.add_argument("-v", "--verbose", action="store_true", 
+                        help="Print debugging statements")
+    args = parser.parse_args()
+
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
@@ -336,11 +342,11 @@ def main():
     pygame.display.set_caption('Battleship')
 
     while True:
-        shots_taken = run_game(args)
+        shots_taken = run_game()
         show_gameover_screen(shots_taken)
         
         
-def run_game(args):
+def run_game():
     revealed_tiles = generate_default_tiles(False) # Part of board initialize
     # main board object, 
     main_board = generate_default_tiles(None)
