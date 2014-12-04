@@ -107,9 +107,11 @@ class Agent:
         stackofshots.pop()
         hitScored = False
         counter  = 0
+
         while check_for_win(self.board, self.revealed) != 1:
             tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
-            counter = counter+1 
+            counter = counter+1
+            
             if tilex != None and tiley != None:
                 if not self.revealed[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
@@ -324,7 +326,7 @@ def run_game():
 #                mousex, mousey = event.pos
                     
 #        tilex, tiley = get_tile_at_pixel(mousex, mousey)
-        hunt = 0 #trigger for hunt/target algorithm
+        hunt = 1 #trigger for hunt/target algorithm
         if hunt == 1 :
             agent.hunt_target()
         else :
