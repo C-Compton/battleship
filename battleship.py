@@ -59,7 +59,7 @@ class Agent:
         self.epsilon = float(epsilon)
         self.qValuesOfhit = util.Counter()
         self.qValuesOfMiss = util.Counter()
-        self.tiles_left=self.game_board
+        #self.tiles_left=self.game_board
         # Keep a copy of the game board state, the revealed tiles
         # and the current shot in order to perform the various
         # learning calculations
@@ -81,11 +81,25 @@ class Agent:
         self.tiles_left.remove((xpos, ypos))
         return (xpos, ypos)
     
+    def takeShotWithParity(self, width, height):
+        """
+        Take a shot on the board. Currently performs random shots
+        :param width:  width of board
+        :param height: height of board
+        :return: tuple of x and y board position to fire upon
+        """
+        # FIXME: Update this method to perform shots based on AI algorithms
+        while True:
+            xpos = random.randint(0, width-1)
+            ypos = random.randint(0, height-1)
+            if xpos%2 != ypos%2:
+                self.currentShot = (xpos, ypos)
+                return (xpos, ypos)
     def manhattanDistance( xy1, xy2 ):
         "Returns the Manhattan distance between points xy1 and xy2"
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
             
-    def update(self, game_board, revealed_tiles, hitScored):
+    def hunt_update(self, game_board, revealed_tiles, hitScored):
         """
         Update the agent's game state
         :param game_board:     Current game board
@@ -107,12 +121,17 @@ class Agent:
         """
         stackofshots = [(0,0)]
         stackofshots.pop()
-        hitScored =False
+        hitScored = False
+        counter  = 0
+
         while check_for_win(self.board, self.revealed) != 1:
-            tilex, tiley = self.takeShot(BOARDWIDTH, BOARDHEIGHT)
+            check_for_quit()
+            tilex, tiley = self.takeShotWithParity(BOARDWIDTH, BOARDHEIGHT)
+            
             if tilex != None and tiley != None:
                 if not self.revealed[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
+                    counter = counter + 1
                 if not self.revealed[tilex][tiley]:
                     reveal_tile_animation(self.board, [(tilex, tiley)])
                     self.revealed[tilex][tiley] = True
@@ -134,6 +153,7 @@ class Agent:
                             if x != None and y != None:
                                 if not self.revealed[x][y]:
                                     draw_highlight_tile(x, y)
+                                    counter = counter + 1
                                 if not self.revealed[x][y]:
                                     reveal_tile_animation(self.board, [(x, y)])
                                     self.revealed[x][y] = True
@@ -152,7 +172,11 @@ class Agent:
                             
                             
                             
-        self.update(self.board, self.revealed, hitScored)
+        self.hunt_update(self.board, self.revealed, hitScored)
+        show_gameover_screen(counter)
+        while True:
+            check_for_quit()
+        
     # if hitScored, update Q values for agent's copy of the game board
     def check_revealed_tile(board, tile):
         # returns True if ship piece at tile location
@@ -171,7 +195,8 @@ class Agent:
         """
         if hit==True:
             return self.qValuesOfhit[position]
-        else return self.qValuesOfMiss[position]
+        else :
+            return self.qValuesOfMiss[position]
 #        util.raiseNotDefined()
 
 
@@ -354,7 +379,7 @@ def run_game():
                             return len(counter)
                     counter.append((tilex, tiley))
 
-        agent.update(main_board, revealed_tiles, hitScored)
+        agent.hunt_update(main_board, revealed_tiles, hitScored)
                 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
