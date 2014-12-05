@@ -7,9 +7,8 @@ http://inventwithpython.com/pygame/chapters/
 """
 
 # Importing pygame modules
-import random, sys, pygame, argparse
+import random, sys, pygame, argparse, util
 from pygame.locals import *
-import util
 
 # Set variables, like screen width and height 
 # globals
@@ -67,14 +66,16 @@ class Agent:
         self.revealed = revealed_tiles
         self.currentShot = None
 
-    def takeAllaviablegrid(self):
-        grid_avilable=[]
+    def takeAllavailableGrid(self):
+        grid_available=[]
         for x in range(BOARDWIDTH) :
             for y in range(BOARDHEIGHT):
                 if self.tiles_left[x][y]==1:
-                    grid_avilable.append((x,y))
-#        print"aaaaaa",grid_avilable
-        return grid_avilable
+                    grid_available.append((x,y))
+        if args.verbose:
+            print"Available grid:", grid_available
+        
+        return grid_available
 
     def takeRandShot(self, width, height):
         """
@@ -274,7 +275,7 @@ class Agent:
         return target
         
 
-    def update_qvalue(self, postion,reward):
+    def update_qvalue(self, position, reward):
         """
           The parent class calls this to observe a
           state = action => nextState and reward transition.
@@ -377,21 +378,12 @@ def run_game():
         hitScored = False
 
         check_for_quit()
-#        for event in pygame.event.get():
-#            if event.type == MOUSEBUTTONUP:
-#                if NEW_RECT.collidepoint(event.pos):
-#                    main()
-#                else:
-#                    mousex, mousey = event.pos
-#                    mouse_clicked = True
-#            elif event.type == MOUSEMOTION:
-#                mousex, mousey = event.pos
-                    
-#        tilex, tiley = get_tile_at_pixel(mousex, mousey)
-#        hunt = 1 #trigger for hunt/target algorithm
+
         if args.hunter :
             agent.hunt_target()
             agent.hunt_update(main_board, revealed_tiles, hitScored)
+            pygame.display.update()
+
         elif args.ai :
             tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
             if tilex != None and tiley != None:
@@ -410,6 +402,7 @@ def run_game():
                     counter.append((tilex, tiley))
             # Jianing, this is your update function, what needs to be passed in?
             agent.update()
+
         else :
             tilex, tiley = agent.takeRandShot(BOARDWIDTH, BOARDHEIGHT)
             if tilex != None and tiley != None:
