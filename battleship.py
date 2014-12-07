@@ -52,19 +52,31 @@ class Agent:
     """
     Our battleship playing agent
     """
-    def __init__(self, game_board, revealed_tiles, alpha=1, gamma=1, epsilon=0):
+    def __init__(self, game_board, revealed_tiles, alpha=0.4, gamma=0.9, epsilon=0.2):
         self.alpha = float(alpha)
         self.gamma = float(gamma)
+        self.discount=gamma
         self.epsilon = float(epsilon)
         self.qValuesOfhit = util.Counter()
+        self.qValuesOfhit[1]=2
         self.qValuesOfMiss = util.Counter()
+        self.qValuesOfMiss[1]=-0.4
         #self.tiles_left=self.game_board
         # Keep a copy of the game board state, the revealed tiles
         # and the current shot in order to perform the various
         # learning calculations
         self.board = game_board
         self.revealed = revealed_tiles
+        self.hitHistory=[]
         self.currentShot = None
+        self.shotCounterQ=0
+        self.legalDistance=[]
+        self.tiles_left=[[1 for a in range(BOARDWIDTH)] for b in range(BOARDHEIGHT)]
+        self.grid_available=[]
+        self.grid_available=self.takeAllavailableGrid()
+        self.q_shot_counter=0
+        self.BOARDWIDTH=BOARDWIDTH
+        self.BOARDHEIGHT=BOARDHEIGHT
 
     def takeAllavailableGrid(self):
         grid_available=[]
@@ -76,6 +88,7 @@ class Agent:
             print"Available grid:", grid_available
         
         return grid_available
+
 
     def takeRandShot(self, width, height):
         """
@@ -89,15 +102,24 @@ class Agent:
         self.currentShot = (xpos, ypos)
         return (xpos, ypos)
 
-    def takeShot(self, width, height):
+    def takeShot(self,position, hitOrnot):
         
         # FIXME: Update this method to perform shots based on AI algorithms
-        xpos = random.randint(0, width-1)
-        ypos = random.randint(0, height-1)
-        self.currentShot = (xpos, ypos)
-        # print 'the travel list is', self.tiles_left
-        self.tiles_left[xpos][ypos] = 0
-        return (xpos, ypos)
+        
+        counter=0
+        while True:
+            target=self.getAction(hitOrnot,position)
+            self.tiles_left[target[0]][target[1]]=0
+            for x in range(BOARDWIDTH) :
+                for y in range(BOARDHEIGHT):
+                    if self.tiles_left[x][y]==1:
+                       counter=counter+1
+#            print "ag counter is",counter
+#            print "Q_shot_counter shot",self.q_shot_counter
+#            print "history is:",len(self.hitHistory)
+
+            print "shoot at",target
+            return target
     
     def takeShotWithParity(self, width, height):
         """
@@ -107,15 +129,19 @@ class Agent:
         :return: tuple of x and y board position to fire upon
         """
         # FIXME: Update this method to perform shots based on AI algorithms
+#        print "tswp hitOrnot",hitOrnot
+#        print "tswp position",position
         while True:
             xpos = random.randint(0, width-1)
             ypos = random.randint(0, height-1)
             if xpos%2 != ypos%2:
                 self.currentShot = (xpos, ypos)
                 return (xpos, ypos)
+        
 
-    def manhattanDistance( xy1, xy2 ):
+    def manhattanDistance( self,xy1, xy2 ):
         "Returns the Manhattan distance between points xy1 and xy2"
+#        print "aaaa",xy1[0],xy2[0],xy1[1],xy2[1]
         return abs( xy1[0] - xy2[0] ) + abs( xy1[1] - xy2[1] )        
             
     def hunt_update(self, game_board, revealed_tiles, hitScored):
@@ -187,10 +213,7 @@ class Agent:
                                         if x-1 >= 0 and not self.revealed[x-1][y]:
                                             stackofshots.append((x-1, y))
                                         if y-1 >= 0 and not self.revealed[x][y-1]:
-                                            stackofshots.append((x, y-1))
-                            
-                            
-                            
+                                            stackofshots.append((x, y-1))                            
         self.hunt_update(self.board, self.revealed, hitScored)
         show_gameover_screen(counter)
         while True:
@@ -201,7 +224,29 @@ class Agent:
         # returns True if ship piece at tile location
         return board[tile[0][0]][tile[0][1]] != None
     
-    def getQValue(self, position,hit):
+    def getAllpossibleDistance(self,position):
+        tmpLD=[]
+        ag=self.takeAllavailableGrid()
+#        print "ag is", ag
+        LG=self.tiles_left
+#        print "LG is", LG
+        for avaiableGrid in ag:
+#            print "ag is",avaiableGrid[0]
+            if  self.manhattanDistance( position, avaiableGrid ) not in tmpLD:
+                tmpLD.append( self.manhattanDistance( position, avaiableGrid ))
+        return tmpLD
+
+    def findLocationWithShootDistance(self,position,shoot_distance):
+#        print"flwsd position",position
+#        print"flwsd sd",shoot_distance
+        ag=self.takeAllavailableGrid()
+        target_list=[]
+        for avaiableGrid in ag:
+            if  self.manhattanDistance( position, avaiableGrid ) ==shoot_distance:
+                target_list.append(avaiableGrid)
+        return target_list
+    
+    def getQValue(self,distance,hitOrnot):
     
         """
           Returns Q(state,action)
@@ -212,46 +257,57 @@ class Agent:
          if hit then return self.qValuesOfhit
          or return self.qValuesOfMiss
         """
-        if hit==True:
-            return self.qValuesOfhit[position]
+        if hitOrnot:
+#            print "Q-value is", self.qValuesOfhit[distance]
+            return self.qValuesOfhit[distance]
         else :
-            return self.qValuesOfMiss[position]
+            return self.qValuesOfMiss[distance]
 #        util.raiseNotDefined()
 
 
-    def computeValueFromQValues(self, position):
-        """
-          Returns max_action Q(state,action)
-          where the max is over legal actions.  Note that if
-          there are no legal actions, which is the case at the
-          terminal state, you should return a value of 0.0.
-        """
-
-        legalPositions = self.tiles_left
-        if legalPositions:
-            if check_revealed_tile(board, position):
-                return max(self.getQValue(lposition,check_revealed_tile(board, position)) for lpositions in legalPositions)
+#    def computeValueFromQValues(self, hitOrnot,position):
+#        """
+#          Returns max_action Q(state,action)
+#          where the max is over legal actions.  Note that if
+#          there are no legal actions, which is the case at the
+#          terminal state, you should return a value of 0.0.
+#        """
+#
+#        legalDistance =getAllpossibleDistance(postion)
+#        if legalDistance:
+#            if hitOrnot:
+#                return max(self.getQValue(hitOrnot,LD) for LD in legalDistance)
 #        return 0.0
 
         util.raiseNotDefined()
 
-    def computeActionFromQValues(self, position):
+    def computeActionFromQValues(self, hitOrnot,position):
         """
           Compute the best action to take in a state.  Note that if there
           are no legal actions, which is the case at the terminal state,
           you should return None.
         """
-      
-        legalPositions = self.tiles_left
-        if legalPositions:
+#        print"position is",position
+        legalDistance=[]
+        targetlist=[]
+        target=()
+        legalDistance =self.getAllpossibleDistance(position) 
+#        print "legalDistance is",legalDistance
+        if legalDistance:
             tempValues = util.Counter()
-            for lpostion in legalPositions:
-                tempValues[lposition] = self.getQValue(lposition,check_revealed_tile(position) )
-            return tempValues.argMax()
-        return None
-        util.raiseNotDefined()
-
-    def getAction(self, position):
+            for LD in legalDistance :
+                if LD!=0:
+                    tempValues[LD] = self.getQValue(LD,hitOrnot)
+#            print "tv is",tempValues
+            shoot_distance=tempValues.argMax()
+#            print "shoot distance is",shoot_distance
+            targetlist=self.findLocationWithShootDistance(position,shoot_distance)
+#            print "cafqlength",len(targetlist)
+            randomTarget=random.randint(0, len(targetlist)-1)
+#            print "in the state of hitOrnot:",hitOrnot,"the distance choosed is :",shoot_distance ,"the target is", targetlist[randomTarget]
+            target=targetlist[randomTarget]
+        return target
+    def getAction(self, hitOrnot,position):
         """
           Compute the action to take in the current state.  With
           probability self.epsilon, we should take a random action and
@@ -263,19 +319,30 @@ class Agent:
           HINT: To pick randomly from a list, use random.choice(list)
         """
         # Pick Action
-        legalPositions = self.tiles_left
-        target =()
-        if legalActions:
+        targetlist=[]
+        legalDistance=[]
+        target=()
+        legalDistance =self.getAllpossibleDistance(position) 
+#        print"GA position is", position
+        if legalDistance:
             if util.flipCoin(self.epsilon):
-                xpos = random.randint(0, width-1)
-                ypos = random.randint(0, height-1)
-                target = (xpos,ypos)
+#                print "length",len(legalDistance)
+                random_Distance = random.randint(0, len(legalDistance)-1)
+                shoot_distance=legalDistance[random_Distance]
+#                print "GA shoot_distance:",shoot_distance
+                targetlist=self.findLocationWithShootDistance(position,shoot_distance)
+#                print"GA TARGET LIST",targetlist,"len is",len(targetlist)
+                randomTarget=random.randint(0, len(targetlist)-1)
+                target=targetlist[randomTarget]
+                print "shoot randomly at",target,self.q_shot_counter
             else:
-                target = self.getPolicy(position)
+                target = self.getPolicy(hitOrnot,position)
         return target
-        
+    
+    def getPolicy(self, hitOrnot,position):
+        return self.computeActionFromQValues(hitOrnot,position)     
 
-    def update_qvalue(self, position, reward):
+    def update_qvalue(self,position, hitOrnot,distance,counter):
         """
           The parent class calls this to observe a
           state = action => nextState and reward transition.
@@ -284,21 +351,31 @@ class Agent:
           NOTE: You should never call this function,
           it will be called on your behalf
         """
-        legalPositions = self.tiles_left
-        sample = reward
-        if legalPositions:
-            sample = reward + self.discount * max(self.getQValue(lposition,check_revealed_tile(board, position)) for lposition in legalPositions)
-        if check_revealed_tile(board, position):
-            self.qValuesOfhit[position] = (1-self.alpha) * self.getQValue(position,check_revealed_tile(board, position) ) + self.alpha * sample
+#        print "position is",position
+#        print "distance is",distance
+#        print "hitOrnot",hitOrnot
+        legalDistance= self.getAllpossibleDistance(position)
+        if counter==0:
+            reward=0
+        elif hitOrnot:
+                reward=0.5
         else:
-            self.qValuesOfMiss[position] = (1-self.alpha) * self.getQValue(position, check_revealed_tile(board, position)) + self.alpha * sample
+                reward=0.1
+#        print "LD is",legalDistance
+        if legalDistance:
+#            print "all the qvalue is", [self.getQValue(LD,hitOrnot) for LD in legalDistance]
+#            print "the max qvalue is", max(self.getQValue(LD,hitOrnot) for LD in legalDistance)
+            sample = reward + self.discount * max(self.getQValue(LD,hitOrnot) for LD in legalDistance)
+        if hitOrnot:
+            self.qValuesOfhit[distance] = (1-self.alpha) * self.getQValue(distance,hitOrnot) + self.alpha * sample
+        else:
+            self.qValuesOfMiss[distance] = (1-self.alpha) * self.getQValue(distance,hitOrnot) + self.alpha * sample
 #        after we deciede  how to discriminate the hit and miss
 #        there will be a if/else segment of update one of two set of q-values
 #        self.qValuesOfmiss[(state, action)]
 #        util.raiseNotDefined()
 
-    def getPolicy(self, position):
-        return self.computeActionFromQValues(position)
+
 
   
 
@@ -385,7 +462,23 @@ def run_game():
             pygame.display.update()
 
         elif args.ai :
-            tilex, tiley = agent.takeShot(BOARDWIDTH, BOARDHEIGHT)
+            tilex=0
+            tiley=0
+            if agent.shotCounterQ==0:
+                print agent.shotCounterQ
+                xpos = random.randint(0, agent.BOARDWIDTH-1)
+                ypos = random.randint(0, agent.BOARDHEIGHT-1)
+                agent.currentShot = (xpos, ypos)
+                # print 'the travel list is', self.tiles_left
+                agent.tiles_left[xpos][ypos] = 0
+                print "init shot!",xpos,ypos
+                agent.shotCounterQ=agent.shotCounterQ+1
+            else:
+
+                tilex, tiley=agent.takeShot(agent.hitHistory[-1][0],agent.hitHistory[-1][1])
+
+            agent.hitHistory.append(((tilex, tiley),check_revealed_tile(main_board, [(tilex, tiley)])))
+            
             if tilex != None and tiley != None:
                 if not revealed_tiles[tilex][tiley]:
                     draw_highlight_tile(tilex, tiley)
@@ -401,8 +494,14 @@ def run_game():
                             return len(counter)
                     counter.append((tilex, tiley))
             # Jianing, this is your update function, what needs to be passed in?
-            agent.update()
-
+            if agent.shotCounterQ<=1:
+                distance=0
+#                agent.shotCounterQ=agent.shotCounterQ+1
+            else:
+                print "current:",(tilex, tiley),"history:",agent.hitHistory
+                distance=agent.manhattanDistance((tilex, tiley),(agent.hitHistory[-2][0][0],agent.hitHistory[-2][0][1]))
+                agent.update_qvalue((tilex, tiley),check_revealed_tile(main_board, [(tilex, tiley)]),distance,agent.shotCounterQ)
+            agent.q_shot_counter=agent.q_shot_counter+1
         else :
             tilex, tiley = agent.takeRandShot(BOARDWIDTH, BOARDHEIGHT)
             if tilex != None and tiley != None:
